@@ -1,0 +1,23 @@
+{
+  "name": "template-ai",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "dev:web": "cd apps/web && bun run dev",
+    "dev:api": "cd apps/api && uvicorn app.main:app --reload --port 8080",
+    "build": "cd apps/web && bun run build",
+    "lint": "cd apps/web && bun run lint",
+    "docker:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "docker:logs": "docker compose -f infra/docker/docker-compose.yml logs -f",
+    "docker:build": "docker compose -f infra/docker/docker-compose.yml build",
+    "docker:restart": "docker compose -f infra/docker/docker-compose.yml restart"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

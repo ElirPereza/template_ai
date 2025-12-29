@@ -1,0 +1,76 @@
+# Template AI - Docker Compose
+# Usage: docker-compose -f infra/docker/docker-compose.yml up -d
+
+services:
+  # PostgreSQL with pgvector for embeddings
+  postgres:
+    image: agnohq/pgvector:16
+    container_name: template_ai_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${DB_USER:-ai}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ai}
+      POSTGRES_DB: ${DB_NAME:-ai}
+    networks:
+      - template-ai
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (Agno + FastAPI)
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: Dockerfile
+    container_name: template_ai_api
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../../apps/api:/app
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-ai}
+      DB_PASS: ${DB_PASSWORD:-ai}
+      DB_DATABASE: ${DB_NAME:-ai}
+      WAIT_FOR_DB: "True"
+    networks:
+      - template-ai
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # Frontend Web (Next.js)
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    container_name: template_ai_web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    networks:
+      - template-ai
+    depends_on:
+      - api
+
+networks:
+  template-ai:
+    driver: bridge
+
+volumes:
+  pgdata:
